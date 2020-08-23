@@ -119,7 +119,8 @@ let menu = Sprite({
 
 
 let image = new Image();
-image.src = "./map.png";
+// image.src = "https://openclipart.org/image/2000px/svg_to_png/1733/molumen-world-map-1.png";
+image.src = "./map_4x.png";
 image.onload = function() {
   sprite.image = image;
 };
