@@ -142,6 +142,9 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     scaleX: 4,
     scaleY: 4,
     opacity: 0.9,
+    onOut: function() {
+      this.pressed = false;
+    },
     render: function() {
       if (this.disabled) {
         this.opacity = 0.4;
