@@ -2,14 +2,26 @@ const MAX_W = 1200;
 const MAX_H = 800;
 
 const PLACES = [
-  { id: 0, name: 'Salvador', x: 424, y: 418 },
-  { id: 1, name: 'Rio de Janeiro', x: 395, y: 460 },
+  { id: 0, name: 'Salvador', x: 124, y: 118 },
+  { id: 1, name: 'Rio de Janeiro', x: 95, y: 160 },
+  { id: 1, name: 'Paris', x: 271, y: -109 },
+  { id: 1, name: 'Taj Mahal', x: 524, y: -24 },
+  { id: 1, name: 'Rome', x: 304, y: -81 }, // 484
+  { id: 1, name: 'Macchu Picchu', x: 18, y: 113 },
+  { id: 1, name: 'New York', x: 14, y: -76 }, // 64
+  { id: 1, name: 'Los Angeles', x: -125, y: -43 }, // 64
+  { id: 1, name: 'Sidney', x: 765, y: 189 }, // 716
+  { id: 1, name: 'London', x: 262, y: -122 }, // 184
+  { id: 1, name: 'Stonehenge', x: 255, y: -121 }, // 184
+  { id: 1, name: 'Athens', x: 342, y: -65 }, // 264
+  { id: 1, name: 'Beijing', x: 650, y: -72 }, // 648
+  { id: 1, name: 'Cairo', x: 364, y: -33 }, // 316
 ];
 
 
 let { init, Sprite, GameLoop, initKeys, keyPressed, initPointer, onPointerDown, track, Button, Grid, Text, load, imageAssets, clamp, keyMap } = kontra
 let { canvas, context } = init();
-let pointer = false;
+let isPointer = false;
 
 initKeys();
 initPointer();
@@ -20,6 +32,7 @@ keyMap['NumpadSubtract'] = 'minus';
 let sprite = Sprite({
   x: (MAX_W - 300) / 2,
   y: MAX_H / 2,
+  initialY: MAX_H / 2,
   radius: (MAX_H / 2) - 100,
   centerX: 0,
   centerY: 0,
@@ -43,7 +56,7 @@ let sprite = Sprite({
 
     this.scaleX = 1;
     this.scaleY = 1;
-    this.y = MAX_H / 2,
+    this.centerY = 0,
 
     btZoomOut.disable();
     btZoomIn.enable();
@@ -54,6 +67,7 @@ let sprite = Sprite({
   },
 
   collidesWithPointer: function(pointer) {
+    return true;
     let dx = pointer.x - this.x;
     let dy = pointer.y - this.y;
     return Math.sqrt(dx * dx + dy * dy) < this.radius;
@@ -61,17 +75,20 @@ let sprite = Sprite({
 
   onDown: function(pointer) {
     // handle on down events on the sprite
-    let x = pointer.x - 150 - canvas.offsetLeft;
-    let y = pointer.y - 100 - canvas.offsetTop;
+    console.log(pointer.x, pointer.y)
+    let x = pointer.x - this.x - canvas.offsetLeft;
+    let y = pointer.y - this.y - canvas.offsetTop;
 
-    x += this.centerX;
+    x += this.centerX * this.scaleX;
+    x /= this.scaleX;
     if (x > this.radius*4) x -= this.radius * 4;
 
-    console.log(this.centerX, '-', x, y);
+    console.log(`{ id: 1, name: '', x: ${x}, y: ${y / this.scaleX} } // ${this.centerX}`);
   },
 
   update: function() {
-    this.y = clamp(MAX_H / 2 - 250, MAX_H / 2 + 250, this.y);
+    this.centerY = clamp(-250, 250, this.centerY);
+    this.y = this.initialY + this.centerY;
 
     if (this.centerX > this.radius * 4) {
       this.centerX -= this.radius * 4;
@@ -119,6 +136,24 @@ let sprite = Sprite({
     this.context.shadowColor = "#000";
     this.context.stroke();
     this.context.restore();
+
+
+    let centerX = this.centerX;
+    if (centerX > this.radius * 3) centerX -= this.radius * 4;
+
+    this.context.save();
+    this.context.strokeStyle = 'yellow';
+    this.context.beginPath();
+    this.context.moveTo(-this.radius - 10000, 0);
+    this.context.lineTo(this.radius + 10000, 0);
+    this.context.closePath();
+    this.context.stroke();
+    this.context.beginPath();
+    this.context.moveTo(-centerX, -this.radius - 1000);
+    this.context.lineTo(-centerX, this.radius + 1000);
+    this.context.closePath();
+    this.context.stroke();
+    this.context.restore();
   }
 });
 
@@ -144,6 +179,7 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     opacity: 0.9,
     onOut: function() {
       this.pressed = false;
+      this.hovered = false;
     },
     render: function() {
       if (this.disabled) {
@@ -158,7 +194,7 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
       }
 
       if (this.hovered) {
-        pointer = true;
+        isPointer = true;
       }
 
       if (this.pressed || keyPressed(this.key)) {
@@ -232,12 +268,12 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     y: MAX_H - 142,
     initialY: MAX_H - 142,
     image: imageAssets['./arrow_small'],
-    disabled: true,
+    // disabled: true,
     key: "up",
     ...buttonCommon,
 
     update: function() {
-      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.y += 4;
+      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.centerY += 4;
     }
   });
 
@@ -247,12 +283,12 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     initialY: MAX_H - 58,
     image: imageAssets['./arrow_small'],
     rotation: Math.PI,
-    disabled: true,
+    // disabled: true,
     key: "down",
     ...buttonCommon,
 
     update: function() {
-      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.y -= 4;
+      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.centerY -= 4;
     }
   });
 
@@ -323,23 +359,23 @@ image.onload = function() {
 
 PLACES.forEach((p) => {
   p.sprite = Sprite({
-    x: p.x - sprite.radius,
-    y: p.y - sprite.radius,
+    x: p.x,
+    y: p.y,
 
     update: function() {
-      this.x = p.x - sprite.radius - sprite.centerX;
+      this.x = p.x - sprite.centerX;
       if (this.x < - sprite.radius) this.x += sprite.radius * 4;
     },
 
     render: function() {
-      if (Math.sqrt((this.x)**2 + (this.y)**2) > sprite.radius + 20) {
-        return;
-      }
+      // if (Math.sqrt((this.x)**2 + (this.y)**2) > sprite.radius + 10) {
+      //   return;
+      // }
 
       this.context.save();
       this.context.fillStyle = 'red';
       this.context.beginPath();
-      this.context.arc(0, 0, 10, 0, 2 * Math.PI);
+      this.context.arc(0, 0, 5, 0, 2 * Math.PI);
       this.context.closePath();
       this.context.fill();
       this.context.restore();
@@ -368,19 +404,12 @@ let loop = GameLoop({
     sprite.render();
     sidebar.render();
 
-    if (pointer) {
+    if (isPointer) {
       canvas.style.cursor = 'pointer';
-      pointer = false;
+      isPointer = false;
     } else {
       canvas.style.cursor = 'initial';
     }
-
-    // if (btRotateL) btRotateL.render();
-    // if (btRotateR) btRotateR.render();
-    // if (btRotateU) btRotateU.render();
-    // if (btRotateD) btRotateD.render();
-    // if (btZoomIn)  btZoomIn.render();
-    // if (btZoomOut) btZoomOut.render();
   }
 });
 
