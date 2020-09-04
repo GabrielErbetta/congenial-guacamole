@@ -19,7 +19,7 @@ const PLACES = [
 ];
 
 
-let { init, Sprite, GameLoop, initKeys, keyPressed, initPointer, onPointerDown, track, Button, Grid, Text, load, imageAssets, clamp, keyMap } = kontra
+let { init, Sprite, GameLoop, initKeys, keyPressed, initPointer, onPointerDown, track, Button, Grid, Text, load, imageAssets, clamp, keyMap, Scene, randInt } = kontra
 let { canvas, context } = init();
 let isPointer = false;
 
@@ -29,7 +29,9 @@ initPointer();
 keyMap['NumpadAdd'] = 'plus';
 keyMap['NumpadSubtract'] = 'minus';
 
-let sprite = Sprite({
+
+// MAP
+let map = Sprite({
   x: (MAX_W - 300) / 2,
   y: MAX_H / 2,
   initialY: MAX_H / 2,
@@ -83,7 +85,11 @@ let sprite = Sprite({
     x /= this.scaleX;
     if (x > this.radius*4) x -= this.radius * 4;
 
-    console.log(`{ id: 1, name: '', x: ${x}, y: ${y / this.scaleX} } // ${this.centerX}`);
+    y = y / this.scaleX;
+
+    console.log(`{ id: 1, name: '', x: ${x}, y: ${y} } // ${this.centerX}`);
+
+    createJump(x, y);
   },
 
   update: function() {
@@ -158,21 +164,18 @@ let sprite = Sprite({
 });
 
 
-
-let sidebar = Sprite({
-  x: MAX_W - 300,
-  y: 0,
-  width: 300,
-  height: MAX_H,
-  color: 'darkslategrey'
+// JUMPS
+let jumpsGrid = Grid({
+  anchor: {x: 0, y: 0},
+  rowGap: 20,
 });
-
 
 
 // BUTTONS
 let btRotateL, btRotateR, btRotateU, btRotateD, btZoomIn, btZoomOut;
 load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then(() => {
   let buttonCommon = {
+    text: { font: '0px' },
     anchor: {x: 0.5, y: 0.5},
     scaleX: 4,
     scaleY: 4,
@@ -218,7 +221,7 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     ...buttonCommon,
 
     update: function() {
-      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.zoomIn();
+      if (!this.disabled && (this.pressed || keyPressed(this.key))) map.zoomIn();
     }
   });
 
@@ -232,7 +235,7 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     ...buttonCommon,
 
     update: function() {
-      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.zoomOut();
+      if (!this.disabled && (this.pressed || keyPressed(this.key))) map.zoomOut();
     }
   });
 
@@ -245,7 +248,7 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     ...buttonCommon,
 
     update: function() {
-      if (this.pressed || keyPressed(this.key)) sprite.centerX -= 4;
+      if (this.pressed || keyPressed(this.key)) map.centerX -= 4;
     }
   });
 
@@ -259,7 +262,7 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     ...buttonCommon,
 
     update: function() {
-      if (this.pressed || keyPressed(this.key)) sprite.centerX += 4;
+      if (this.pressed || keyPressed(this.key)) map.centerX += 4;
     }
   });
 
@@ -268,12 +271,12 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     y: MAX_H - 142,
     initialY: MAX_H - 142,
     image: imageAssets['./arrow_small'],
-    // disabled: true,
+    disabled: true,
     key: "up",
     ...buttonCommon,
 
     update: function() {
-      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.centerY += 4;
+      if (!this.disabled && (this.pressed || keyPressed(this.key))) map.centerY += 4;
     }
   });
 
@@ -283,12 +286,12 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
     initialY: MAX_H - 58,
     image: imageAssets['./arrow_small'],
     rotation: Math.PI,
-    // disabled: true,
+    disabled: true,
     key: "down",
     ...buttonCommon,
 
     update: function() {
-      if (!this.disabled && (this.pressed || keyPressed(this.key))) sprite.centerY -= 4;
+      if (!this.disabled && (this.pressed || keyPressed(this.key))) map.centerY -= 4;
     }
   });
 
@@ -300,50 +303,117 @@ load('./arrow.png', './arrow_small.png', './zoomin.png', './zoomout.png').then((
   sidebar.addChild(btRotateR);
 });
 
-
-// old menu
-/*
-let button = Text({
-  color: 'white',
-  font: '20px Arial, sans-serif',
-  text: 'Start'
+// SIDEBAR
+let sidebar = Sprite({
+  x: MAX_W - 300,
+  y: 0,
+  width: 300,
+  height: MAX_H,
+  color: 'darkslategrey',
+  children: [jumpsGrid]
 });
 
-let button2 = Text({
-  color: 'white',
-  font: '20px Arial, sans-serif',
-  text: 'Options'
+// NEXT JUMP
+let nextBt = Button({
+  x: MAX_W - 320,
+  y: MAX_H - 20,
+  disabled: true,
+  anchor: {x: 1, y: 1},
+  text: {
+    text: 'NEXT JUMP',
+    color: '#ddd',
+    font: '30px Arial, sans-serif',
+    anchor: {x: 1, y: 1},
+  },
+  update: function() {
+    this.disabled = selectedJumps.length <= currentJump;
+  },
+  render: function() {
+    if (this.disabled) {
+      this.textNode.text = '';
+    } else {
+      this.textNode.text = 'NEXT JUMP';
+    }
+
+    if (this.hovered) {
+      isPointer = true;
+      this.textNode.color = '#ff0';
+    } else {
+      this.textNode.color = '#ddd';
+    }
+  },
+  onDown: function() {
+    nextJump()
+  }
 });
 
-let button3 = Text({
-  color: 'white',
-  font: '20px Arial, sans-serif',
-  text: 'Quit'
-});
 
 
-
-let menu = Grid({
-  x: MAX_W - 150,
-  y: MAX_H/2,
+// MENU
+let title = Text({
+  text: 'AQUI VAI O NOME DO JOGO',
+  font: '42px monospace',
+  color: 'purple',
+  x: MAX_W / 2,
+  y: (MAX_H / 4) * 1,
   anchor: {x: 0.5, y: 0.5},
-
-  // height: MAX_H,
-  // width: 300,
-
-  // color: 'red',
-
-  // add 15 pixels of space between each row
-  rowGap: 15,
-
-  // center the children
-  justify: 'center',
-
-  // align: 'center',
-
-  children: [button, button2, button3]
 });
-*/
+let menuButtonCommon = {
+  anchor: {x: 0.5, y: 0.5},
+  render: function() {
+    if (this.hovered) {
+      isPointer = true;
+      this.textNode.color = '#ff0';
+    } else {
+      this.textNode.color = '#ddd';
+    }
+
+    this.draw();
+  }
+};
+let startBt = Button({
+  text: {
+    text: 'Start',
+    color: '#ddd',
+    font: '30px Arial, sans-serif',
+    anchor: {x: 0.5, y: 0.5},
+  },
+  ...menuButtonCommon,
+  onDown: function() {
+    menuScene.hide();
+    gameScene.show();
+  },
+});
+let instructionBt = Button({
+  text: {
+    text: 'Instructions',
+    color: '#ddd',
+    font: '30px Arial, sans-serif',
+    anchor: {x: 0.5, y: 0.5},
+  },
+  disabled: true,
+  ...menuButtonCommon,
+});
+let menu = Grid({
+  x: MAX_W / 2,
+  y: (MAX_H / 4) * 3,
+  anchor: {x: 0.5, y: 0.5},
+  rowGap: 20,
+  justify: 'center',
+  children: [startBt, instructionBt]
+});
+let menuScene = Scene({
+  id: 'menu',
+  children: [title, menu]
+});
+
+
+
+// MAIN GAME
+let gameScene = Scene({
+  id: 'game',
+  children: [map, sidebar, nextBt]
+});
 
 
 
@@ -352,19 +422,19 @@ let image = new Image();
 // image.src = "https://openclipart.org/image/2000px/svg_to_png/1733/molumen-world-map-1.png";
 image.src = "./map_new.png";
 image.onload = function() {
-  sprite.image = image;
+  map.image = image;
 };
 
 
-
+// PLACES
 PLACES.forEach((p) => {
   p.sprite = Sprite({
     x: p.x,
     y: p.y,
 
     update: function() {
-      this.x = p.x - sprite.centerX;
-      if (this.x < - sprite.radius) this.x += sprite.radius * 4;
+      this.x = p.x - map.centerX;
+      if (this.x < - map.radius) this.x += map.radius * 4;
     },
 
     render: function() {
@@ -382,18 +452,103 @@ PLACES.forEach((p) => {
     }
   });
 
-  sprite.addChild(p.sprite);
+  map.addChild(p.sprite);
 });
 
 
+// JUMPS
+let jumps, selectedJumps, currentJump;
+function generateJumps() {
+  jumps = [];
+  selectedJumps = [];
+  currentJump = 0;
+
+  while (jumps.length < 5) {
+    let selected = randInt(0, PLACES.length - 1);
+    if (!jumps.find(e => e == PLACES[selected])) jumps.push(PLACES[selected]);
+  }
+
+  jumps.forEach(function(j, i) {
+    jumpsGrid.addChild(Text({
+      text: j.name,
+      font: '26px Arial',
+      color: 'white',
+      width: 300,
+      jumpNumber: i,
+      render: function() {
+        if (currentJump == this.jumpNumber) {
+          this.color = 'yellow';
+        } else {
+          this.color = 'white';
+        }
+        this.draw();
+      }
+    }));
+  });
+}
+
+function createJump(x, y) {
+  if (selectedJumps.length > currentJump) {
+    let j = selectedJumps.pop();
+    map.removeChild(j);
+  }
+
+  let s = Sprite({
+    jumpNumber: currentJump,
+    initialX: x,
+    initialY: y,
+    x: x,
+    y: y,
+    color: 'yellow',
+
+    update: function() {
+      this.x = x - map.centerX;
+      if (this.x < - map.radius) this.x += map.radius * 4;
+
+      this.color = this.jumpNumber == currentJump ? 'purple' : 'yellow';
+    },
+
+    render: function() {
+      this.context.save();
+      this.context.fillStyle = this.color;
+      this.context.beginPath();
+      this.context.arc(0, 0, 3, 0, 2 * Math.PI);
+      this.context.closePath();
+      this.context.fill();
+      this.context.restore();
+    }
+  });
+
+  selectedJumps.push(s);
+  map.addChild(s);
+}
+
+function nextJump() {
+  currentJump++;
+  if (currentJump == 5) return finishGame();
+}
+
+function finishGame() {
+  let message = '';
+
+  selectedJumps.forEach((j, i) => {
+    let distance = Math.sqrt((j.initialX - jumps[i].x)**2 + (j.initialY - jumps[i].y)**2);
+    if (distance > 10) message += `MISSED ${jumps[i].name} BY ${distance}\n`;
+  });
+
+  if (message == '') message = 'YOU WIN!';
+
+  alert(message);
+  location.reload();
+}
 
 
 let loop = GameLoop({
   // create the main game loop
   update: function () {
     // update the game state
-    sprite.update();
-    sidebar.update();
+    menuScene.update();
+    gameScene.update();
 
     PLACES.forEach((p) => {
       if (p.sprite) p.sprite.update();
@@ -401,9 +556,10 @@ let loop = GameLoop({
   },
   render: function () {
     // render the game state
-    sprite.render();
-    sidebar.render();
+    menuScene.render();
+    gameScene.render();
 
+    // Change mouse to pointer
     if (isPointer) {
       canvas.style.cursor = 'pointer';
       isPointer = false;
@@ -413,5 +569,8 @@ let loop = GameLoop({
   }
 });
 
-track(sprite);
+track(map);
+generateJumps();
+gameScene.hide();
+menuScene.show();
 loop.start(); // start the game
