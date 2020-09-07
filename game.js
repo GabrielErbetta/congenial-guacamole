@@ -212,10 +212,10 @@ let map = Sprite({
 
 // JUMPS GRID
 let jumpsGrid = Grid({
-  x: 12,
-  y: 12,
+  x: 22,
+  y: 22,
   anchor: {x: 0, y: 0},
-  rowGap: 20,
+  rowGap: 12,
 });
 
 
@@ -403,7 +403,7 @@ let nextBt = Button({
     this.context.fillRect(0, 0, this.width, this.height);
   },
   onDown: function() {
-    nextJump();
+    checkJump();
   }
 });
 
@@ -413,8 +413,18 @@ let pointsCounter = Sprite({
   x: 0,
   y: MAX_H,
   width: 200,
-  height: 40,
-  color: 'darkslategrey'
+  height: 20,
+  render: function() {
+    this.context.font = '20px monospace';
+    this.context.fillStyle = 'white';
+    this.context.textBaseline = "top";
+
+    this.context.font = this.font;
+    this.context.textBaseline = "middle";
+
+    if (jumps[currentJump])
+    this.context.fillText(jumps[currentJump].name, 4, 4);
+  }
 });
 
 
@@ -540,24 +550,78 @@ function generateJumps() {
   }
 
   jumps.forEach(function(j, i) {
-    jumpsGrid.addChild(Text({
-      text: j.name,
-      font: '26px Arial',
-      color: 'white',
-      width: 300,
+    let jumpSprite = Sprite({
+      ip: `${randInt(0, 255)}.${randInt(0, 255)}.${randInt(0, 255)}.${randInt(0, 255)}`,
+      font: '26px monospace',
+      color: GREY,
+      width: 300 - 44,
+      height: 48,
+      padX: 8,
+      padY: 8,
       jumpNumber: i,
+      status: 0,
+
+      activate: function() {
+        this.height = 240;
+        this.color = PURPLE;
+        this.status = 1;
+      },
+      deactivate: function() {
+        this.height = 48;
+        this.color = AQUAMARINE;
+        this.status = 2;
+      },
       render: function() {
-        if (currentJump > this.jumpNumber) {
-          this.color = AQUAMARINE;
-        } else if (currentJump == this.jumpNumber) {
-          this.color = PURPLE;
+        this.context.strokeStyle = this.color;
+        this.context.fillStyle = this.status == 1 ? LIGHT_BLUE : "#444";
+        this.context.fillRect(0, 0, this.width, this.height);
+        this.context.strokeRect(0, 0, this.width, this.height);
+
+        this.context.font = '12px monospace';
+        this.context.fillStyle = 'white';
+        this.context.textBaseline = "top";
+        this.context.fillText(this.ip, 4, 4);
+
+        this.context.font = this.font;
+        this.context.textAlign = "center";
+        this.context.textBaseline = "middle";
+        if (this.status == 0) {
+          this.context.fillText('???', this.width / 2, this.height / 2 + 6);
+        } else if (this.status == 1) {
+          this.context.fillText('???', this.width / 2, this.height / 8 + 6);
+
+          if (this.image) {
+            let x = (this.width - 160) / 2;
+            let y =  this.height / 8 * 2;
+            this.context.strokeStyle = GREY;
+            this.context.lineWidth = 12;
+            this.context.strokeRect(x, y, 160, 160);
+            this.context.drawImage(this.image, 0, 0, image.height, image.width, x, y, 160, 160);
+          }
         } else {
-          this.color = 'white';
+          this.context.fillText(jumps[this.jumpNumber].name, this.width / 2, this.height / 2 + 6);
         }
-        this.draw();
+        // if (currentJump > this.jumpNumber) {
+        //   this.color = AQUAMARINE;
+        // } else if (currentJump == this.jumpNumber) {
+        //   this.color = PURPLE;
+        // } else {
+        //   this.color = 'white';
+        // }
+        // this.draw();
       }
-    }));
+    });
+
+    let image = new Image();
+    image.src = "./places/rio.png";
+    image.onload = function() {
+      jumpSprite.image = image;
+    };
+
+    jumpsGrid.addChild(jumpSprite);
   });
+
+  jumpsGrid.children[0].activate();
 }
 
 function createJump(x, y) {
@@ -624,20 +688,25 @@ function createJump(x, y) {
   map.addChild(s);
 }
 
-function nextJump() {
+function checkJump() {
   let i = currentJump;
   let jump = selectedJumps[i];
   let distance = Math.sqrt((jump.initialX - jumps[i].x)**2 + (jump.initialY - jumps[i].y)**2);
   if (distance > 1200) distance -= 1200;
   if (distance > 10) {
-    alert(` 404 \n YOU LOSE \n DISTANCE ${distance} `);
+    alert(` 404 \n YOU LOSE \n DISTANCE ${distance} \n MAX DISTANCE IS 10`);
     location.reload();
     return;
   }
 
   // map.interactive = true
+  jumpsGrid.children[currentJump].deactivate();
   currentJump++;
-  if (currentJump == 5) return finishGame();
+  if (currentJump == 5) {
+    return finishGame();
+  } else {
+    jumpsGrid.children[currentJump].activate();
+  }
 }
 
 function finishGame() {
